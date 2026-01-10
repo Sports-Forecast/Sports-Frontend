@@ -44,6 +44,11 @@ MAIN_STYLES = """
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 
+/* Hide the auto-generated pages navigation in sidebar */
+[data-testid="stSidebarNav"] {
+    display: none !important;
+}
+
 /* Keep sidebar toggle button visible */
 [data-testid="collapsedControl"] {
     display: flex !important;
