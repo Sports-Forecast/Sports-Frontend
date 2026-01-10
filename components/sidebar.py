@@ -167,12 +167,12 @@ def render_sport_submenu(sport: str) -> str:
     """Render sport-specific submenu"""
     config = SPORTS.get(sport, {})
 
-    tabs = ["Predictions", "Team Analysis", "Historical Data", "Live Odds"]
+    tabs = ["Predictions", "Team Analysis"]
 
     selected_tab = option_menu(
         menu_title=None,
         options=tabs,
-        icons=["lightning", "people", "graph-up", "broadcast"],
+        icons=["lightning", "people"],
         orientation="horizontal",
         styles={
             "container": {
