@@ -3,14 +3,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def get_config(key: str, default: str = "") -> str:
+    """Get config value from Streamlit secrets or environment variables"""
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and key in st.secrets:
+            return str(st.secrets[key])
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
+
 # API Configuration
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
-API_TIMEOUT = int(os.getenv("API_TIMEOUT", "30"))
+API_BASE_URL = get_config("API_BASE_URL", "http://localhost:8000")
+API_TIMEOUT = int(get_config("API_TIMEOUT", "30"))
 
 # Application Settings
 APP_NAME = "Sports Prediction Platform"
 APP_VERSION = "1.0.0"
-DEBUG_MODE = os.getenv("DEBUG_MODE", "False").lower() == "true"
+DEBUG_MODE = get_config("DEBUG_MODE", "false").lower() == "true"
 
 # Theme Configuration
 THEME = {
