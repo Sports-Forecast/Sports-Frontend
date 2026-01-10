@@ -40,10 +40,26 @@ MAIN_STYLES = """
     font-family: 'Inter', 'Segoe UI', sans-serif;
 }
 
-/* Hide Streamlit Branding */
+/* Hide Streamlit Branding but keep sidebar toggle */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
-header {visibility: hidden;}
+
+/* Keep sidebar toggle button visible */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+}
+
+/* Ensure sidebar toggle is always accessible */
+button[kind="header"] {
+    visibility: visible !important;
+}
+
+/* Style the sidebar collapse button */
+[data-testid="stSidebarCollapseButton"] {
+    visibility: visible !important;
+    display: block !important;
+}
 
 /* Main Container */
 .main .block-container {
