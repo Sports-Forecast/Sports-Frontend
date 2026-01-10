@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m streamlit:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(python -m py_compile:*)"
+    ]
+  }
+}
