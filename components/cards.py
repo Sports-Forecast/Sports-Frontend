@@ -161,11 +161,11 @@ def render_model_card(
 
         with col2:
             if status == "Active":
-                st.success(status, icon="✅")
+                st.success(status)
             elif status == "Training":
-                st.warning(status, icon="⏳")
+                st.warning(status)
             else:
-                st.error(status, icon="❌")
+                st.error(status)
 
         col1, col2, col3 = st.columns(3)
         with col1:
