@@ -161,11 +161,20 @@ def render_model_card(
 
         with col2:
             if status == "Active":
-                st.success(status)
+                st.markdown(
+                    f'<span style="color: #4CAF50; font-weight: 600;">{status}</span>',
+                    unsafe_allow_html=True
+                )
             elif status == "Training":
-                st.warning(status)
+                st.markdown(
+                    f'<span style="color: #FF9800; font-weight: 600;">{status}</span>',
+                    unsafe_allow_html=True
+                )
             else:
-                st.error(status)
+                st.markdown(
+                    f'<span style="color: #F44336; font-weight: 600;">{status}</span>',
+                    unsafe_allow_html=True
+                )
 
         col1, col2, col3 = st.columns(3)
         with col1:
