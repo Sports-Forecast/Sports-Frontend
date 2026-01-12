@@ -110,6 +110,12 @@ class APIClient:
         params = {"date": date} if date else None
         return self._make_request("GET", "/api/predict/nhl", params=params)
 
+    # Live Prediction Endpoints
+    def get_live_predictions(self, sport: str) -> Dict[str, Any]:
+        """Get live predictions for a specific sport"""
+        sport_lower = sport.lower()
+        return self._make_request("GET", f"/api/predict/live/{sport_lower}")
+
     def get_nhl_goalies(self) -> Dict[str, Any]:
         """Get NHL goalie database"""
         return self._make_request("GET", "/api/nhl/goalies")

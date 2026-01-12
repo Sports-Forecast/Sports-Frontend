@@ -51,8 +51,14 @@ def render_sport_dashboard(sport: str):
 def render_predictions_tab(sport: str, color: str):
     """Render predictions tab"""
 
-    # Date selector and filters
-    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+    # Live button and Date selector row
+    live_col, col1, col2, col3, col4 = st.columns([1.2, 2, 1, 1, 1])
+
+    with live_col:
+        st.write("")  # Spacer for alignment
+        st.markdown('<div class="live-button-container">', unsafe_allow_html=True)
+        live_clicked = st.button("🔴 LIVE", key=f"{sport}_live_btn", help="View live games with predictions")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col1:
         selected_date = st.date_input(
@@ -79,6 +85,15 @@ def render_predictions_tab(sport: str, color: str):
         st.write("")  # Spacer
         if st.button("🔄 Refresh", key=f"{sport}_refresh"):
             st.rerun()
+
+    # Handle live button click
+    if live_clicked:
+        st.session_state[f"{sport}_show_live"] = True
+
+    # Show live predictions if toggled
+    if st.session_state.get(f"{sport}_show_live", False):
+        render_live_predictions_modal(sport, color)
+        return
 
     st.divider()
 
@@ -392,6 +407,199 @@ def render_live_odds_tab(sport: str, color: str):
             timestamps, home_odds, away_odds, "Home Team", "Away Team"
         )
         st.plotly_chart(odds_fig, width="stretch", config={'displayModeBar': False})
+
+
+def render_live_predictions_modal(sport: str, color: str):
+    """Render live predictions section with real-time game data"""
+    import plotly.graph_objects as go
+
+    # Header with back button
+    col_back, col_title, col_refresh = st.columns([1, 4, 1])
+
+    with col_back:
+        if st.button("← Back", key=f"{sport}_live_back"):
+            st.session_state[f"{sport}_show_live"] = False
+            st.rerun()
+
+    with col_title:
+        st.markdown(
+            f"""
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="
+                    display: inline-block;
+                    width: 12px;
+                    height: 12px;
+                    background: #F44336;
+                    border-radius: 50%;
+                    animation: liveBlink 1.5s ease-in-out infinite;
+                "></span>
+                <h2 style="margin: 0; color: white;">Live {sport} Games</h2>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col_refresh:
+        if st.button("🔄", key=f"{sport}_live_refresh", help="Refresh live data"):
+            st.rerun()
+
+    st.divider()
+
+    # Fetch live predictions from API
+    api_client = get_api_client()
+    result = api_client.get_live_predictions(sport)
+
+    if not result.get("success"):
+        error_msg = result.get("error", "Failed to fetch live predictions")
+        st.error(f"Could not load live games: {error_msg}")
+        st.info("Make sure the backend server is running and the live prediction endpoints are available.")
+        return
+
+    data = result.get("data", {})
+    live_games = data.get("games", data.get("predictions", []))
+
+    if not live_games:
+        st.info(f"No live {sport} games at the moment.")
+        st.caption("Live games will appear here when games are in progress.")
+        return
+
+    # Stats summary for live games
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        render_stat_card(
+            title="Live Games",
+            value=str(len(live_games)),
+            icon="🔴",
+            color="#F44336"
+        )
+
+    with col2:
+        high_conf = sum(1 for g in live_games if g.get('confidence', 0) >= 0.65)
+        render_stat_card(
+            title="High Confidence",
+            value=str(high_conf),
+            icon="🎯",
+            color="#4CAF50"
+        )
+
+    with col3:
+        avg_conf = sum(g.get('confidence', 0.5) for g in live_games) / len(live_games) if live_games else 0
+        render_stat_card(
+            title="Avg Confidence",
+            value=f"{avg_conf*100:.1f}%",
+            icon="📊",
+            color="#00BCF2"
+        )
+
+    st.write("")
+
+    # Render each live game
+    for game in live_games:
+        render_live_game_card(game, sport, color)
+
+
+def render_live_game_card(game: dict, sport: str, color: str):
+    """Render a single live game card with prediction"""
+    import plotly.graph_objects as go
+
+    home_team = game.get("home_team", "Home Team")
+    away_team = game.get("away_team", "Away Team")
+    home_prob = game.get("home_win_probability", game.get("home_win_prob", 0.5))
+    away_prob = 1 - home_prob
+    confidence = game.get("confidence", 0.5)
+    home_score = game.get("home_score", game.get("home_points", "-"))
+    away_score = game.get("away_score", game.get("away_points", "-"))
+    period = game.get("period", game.get("quarter", game.get("inning", "")))
+    time_remaining = game.get("time_remaining", game.get("clock", ""))
+    game_status = game.get("status", "In Progress")
+
+    # Create unique key for this game
+    game_key = f"{sport}_{home_team}_{away_team}".replace(" ", "_")
+
+    with st.container():
+        # Live game card with red border styling
+        st.markdown('<div class="live-game-card">', unsafe_allow_html=True)
+
+        # Game status header
+        status_col1, status_col2 = st.columns([3, 1])
+        with status_col1:
+            period_display = f"Period {period}" if period else ""
+            time_display = f" - {time_remaining}" if time_remaining else ""
+            st.caption(f"🔴 LIVE {period_display}{time_display}")
+        with status_col2:
+            st.caption(game_status)
+
+        # Score display
+        score_col1, score_col2, score_col3 = st.columns([2, 1, 2])
+
+        with score_col1:
+            if home_prob > 0.5:
+                st.markdown(f"**:green[{home_team}]**")
+            else:
+                st.markdown(f"**{home_team}**")
+            st.markdown(f"### {home_score}")
+
+        with score_col2:
+            st.markdown(
+                "<div style='text-align: center; padding-top: 15px;'><b>VS</b></div>",
+                unsafe_allow_html=True
+            )
+
+        with score_col3:
+            if away_prob > 0.5:
+                st.markdown(f"**:green[{away_team}]**")
+            else:
+                st.markdown(f"**{away_team}**")
+            st.markdown(f"### {away_score}")
+
+        # Probability bar
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            y=[''],
+            x=[home_prob * 100],
+            orientation='h',
+            name=home_team,
+            marker_color='#4CAF50' if home_prob > 0.5 else '#666666',
+            text=f"{home_team}: {home_prob*100:.1f}%",
+            textposition='inside',
+            insidetextanchor='start'
+        ))
+        fig.add_trace(go.Bar(
+            y=[''],
+            x=[away_prob * 100],
+            orientation='h',
+            name=away_team,
+            marker_color='#4CAF50' if away_prob > 0.5 else '#666666',
+            text=f"{away_team}: {away_prob*100:.1f}%",
+            textposition='inside',
+            insidetextanchor='end'
+        ))
+        fig.update_layout(
+            barmode='stack',
+            height=50,
+            margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            showlegend=False,
+            xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, range=[0, 100]),
+            yaxis=dict(showticklabels=False, showgrid=False, zeroline=False)
+        )
+        st.plotly_chart(fig, width="stretch", config={'displayModeBar': False}, key=f"live_prob_{game_key}")
+
+        # Additional live stats
+        stat_col1, stat_col2, stat_col3 = st.columns(3)
+        with stat_col1:
+            st.metric("Confidence", f"{confidence*100:.1f}%")
+        with stat_col2:
+            spread = game.get("spread", game.get("live_spread", "N/A"))
+            st.metric("Live Spread", spread if spread else "N/A")
+        with stat_col3:
+            over_under = game.get("over_under", game.get("total", "N/A"))
+            st.metric("Over/Under", over_under if over_under else "N/A")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.write("")  # Spacing between cards
 
 
 def fetch_predictions_from_api(sport: str, date: str = None):

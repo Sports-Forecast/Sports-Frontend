@@ -494,6 +494,74 @@ section[data-testid="stSidebar"] .stRadio > label {
     50% { opacity: 0.5; }
 }
 
+@keyframes liveBlink {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 8px rgba(244, 67, 54, 0.8);
+    }
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 16px rgba(244, 67, 54, 1);
+    }
+}
+
+/* Live Button Styles */
+.live-button-container button {
+    background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.75rem 1.5rem !important;
+    font-weight: 700 !important;
+    animation: liveBlink 1.5s ease-in-out infinite !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.live-button-container button:hover {
+    background: linear-gradient(135deg, #E53935 0%, #C62828 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 20px rgba(244, 67, 54, 0.6) !important;
+}
+
+.live-button-container button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    animation: liveBlink 1.5s ease-in-out infinite;
+}
+
+/* Live Game Card */
+.live-game-card {
+    background: linear-gradient(145deg, #2D2D30 0%, #252526 100%);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid #F44336;
+    box-shadow: 0 0 20px rgba(244, 67, 54, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.live-game-card::before {
+    content: 'LIVE';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #F44336;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    animation: liveBlink 1.5s ease-in-out infinite;
+}
+
 .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
 }
