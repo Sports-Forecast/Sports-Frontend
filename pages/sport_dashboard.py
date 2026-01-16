@@ -175,6 +175,13 @@ def render_predictions_tab(sport: str, color: str):
     # Predictions grid
     for pred in predictions:
         with st.container():
+            # Format spread for display
+            spread_val = pred.get('spread', '')
+            if isinstance(spread_val, (int, float)):
+                spread_display = f"{spread_val:+.1f}"
+            else:
+                spread_display = spread_val
+
             render_prediction_card(
                 home_team=pred['home_team'],
                 away_team=pred['away_team'],
@@ -182,7 +189,7 @@ def render_predictions_tab(sport: str, color: str):
                 confidence=pred['confidence'],
                 game_time=pred['game_time'],
                 venue=pred.get('venue', ''),
-                spread=pred.get('spread', ''),
+                spread=spread_display,
                 over_under=pred.get('over_under', ''),
                 home_record=pred.get('home_record', ''),
                 away_record=pred.get('away_record', '')
@@ -190,36 +197,64 @@ def render_predictions_tab(sport: str, color: str):
 
             # Expandable details
             with st.expander("📊 View Detailed Analysis"):
-                detail_col1, detail_col2 = st.columns(2)
+                # Create unique key base for this game
+                game_key_base = f"{sport}_{pred['home_team'].replace(' ', '_')}_{pred['away_team'].replace(' ', '_')}"
 
-                with detail_col1:
-                    st.markdown("**Monte Carlo Simulation**")
-                    # Generate sample MC data
-                    mc_data = np.random.normal(
-                        (pred['home_win_prob'] - 0.5) * 10, 5, 1000
-                    ).tolist()
-                    mc_fig = create_monte_carlo_distribution(
-                        mc_data, pred['home_team'], pred['away_team']
-                    )
-                    mc_key = f"mc_{sport}_{pred['home_team'].replace(' ', '_')}_{pred['away_team'].replace(' ', '_')}"
-                    st.plotly_chart(
-                        mc_fig, width="stretch",
-                        config={'displayModeBar': False}, key=mc_key
-                    )
+                # Tab-like sections for different analysis types
+                analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs([
+                    "📈 Feature Impact", "⭐ Star Players", "📊 Team Form"
+                ])
 
-                with detail_col2:
-                    st.markdown("**Feature Importance (SHAP)**")
-                    features = [
-                        "Home Advantage", "Recent Form", "Star Player",
-                        "Rest Days", "H2H History"
-                    ]
-                    values = [0.08, 0.12, -0.05, 0.03, 0.02]
-                    shap_fig = create_shap_waterfall(features, values)
-                    shap_key = f"shap_{sport}_{pred['home_team'].replace(' ', '_')}_{pred['away_team'].replace(' ', '_')}"
-                    st.plotly_chart(
-                        shap_fig, width="stretch",
-                        config={'displayModeBar': False}, key=shap_key
-                    )
+                with analysis_tab1:
+                    detail_col1, detail_col2 = st.columns(2)
+
+                    with detail_col1:
+                        st.markdown("**Monte Carlo Simulation**")
+                        mc_data = np.random.normal(
+                            (pred['home_win_prob'] - 0.5) * 10, 5, 1000
+                        ).tolist()
+                        mc_fig = create_monte_carlo_distribution(
+                            mc_data, pred['home_team'], pred['away_team']
+                        )
+                        st.plotly_chart(
+                            mc_fig, width="stretch",
+                            config={'displayModeBar': False}, key=f"mc_{game_key_base}"
+                        )
+
+                    with detail_col2:
+                        st.markdown("**Feature Importance (SHAP)**")
+                        # Build SHAP features from actual API data
+                        features, values = build_shap_features(pred)
+                        shap_fig = create_shap_waterfall(features, values)
+                        st.plotly_chart(
+                            shap_fig, width="stretch",
+                            config={'displayModeBar': False}, key=f"shap_{game_key_base}"
+                        )
+
+                    # Market odds details
+                    market_odds = pred.get('market_odds', {})
+                    if market_odds:
+                        st.markdown("---")
+                        st.markdown("**Market Odds Analysis**")
+                        odds_col1, odds_col2, odds_col3, odds_col4 = st.columns(4)
+                        with odds_col1:
+                            spread_val = market_odds.get('spread', 'N/A')
+                            st.metric("Spread", f"{spread_val:+.1f}" if isinstance(spread_val, (int, float)) else spread_val)
+                        with odds_col2:
+                            ou_val = market_odds.get('over_under', 'N/A')
+                            st.metric("Over/Under", f"{ou_val}" if ou_val else "N/A")
+                        with odds_col3:
+                            spread_adj = market_odds.get('spread_adjustment', 0)
+                            st.metric("Spread Impact", f"{spread_adj*100:+.2f}%")
+                        with odds_col4:
+                            total_adj = market_odds.get('total_adjustment', 0)
+                            st.metric("Total Impact", f"{total_adj*100:+.2f}%")
+
+                with analysis_tab2:
+                    render_star_impact_section(pred, game_key_base)
+
+                with analysis_tab3:
+                    render_team_form_section(pred, game_key_base)
 
 
 def render_team_analysis_tab(sport: str, color: str):
@@ -602,6 +637,226 @@ def render_live_game_card(game: dict, sport: str, color: str):
         st.write("")  # Spacing between cards
 
 
+def build_shap_features(pred: dict) -> tuple:
+    """Build SHAP feature names and values from prediction data"""
+    features = []
+    values = []
+
+    # Get team form data
+    team_form = pred.get('team_form', {})
+    form_adjustment = team_form.get('form_adjustment', 0)
+
+    # Get star impact data
+    star_impact = pred.get('star_impact', {})
+    net_star_impact = star_impact.get('net_impact', 0)
+
+    # Get market odds data
+    market_odds = pred.get('market_odds', {})
+    spread_adjustment = market_odds.get('spread_adjustment', 0)
+    total_adjustment = market_odds.get('total_adjustment', 0)
+
+    # Get feature weights for reference
+    feature_weights = pred.get('feature_weights', {})
+
+    # Build features based on available data
+    # Form adjustment (recent performance)
+    if form_adjustment != 0:
+        features.append("Recent Form")
+        values.append(form_adjustment)
+
+    # Star player impact
+    if net_star_impact != 0:
+        features.append("Star Players")
+        values.append(net_star_impact)
+
+    # Market spread signal
+    if spread_adjustment != 0:
+        features.append("Market Spread")
+        values.append(spread_adjustment)
+
+    # Market total signal
+    if total_adjustment != 0:
+        features.append("Market Total")
+        values.append(total_adjustment)
+
+    # Home advantage (estimated from feature weights)
+    home_adv_weight = feature_weights.get('home_advantage', 0.08)
+    if home_adv_weight > 0:
+        features.append("Home Advantage")
+        values.append(home_adv_weight)
+
+    # If we have very few features, add some defaults based on probability shift
+    base_prob = pred.get('base_home_probability', 0.5)
+    final_prob = pred.get('home_win_prob', 0.5)
+    prob_shift = final_prob - base_prob
+
+    if len(features) < 3:
+        # Add rest days impact (estimated)
+        rest_weight = feature_weights.get('rest_days', 0.05)
+        features.append("Rest Days")
+        values.append(rest_weight * (0.5 if prob_shift > 0 else -0.5))
+
+        # Add H2H history (estimated)
+        h2h_weight = feature_weights.get('h2h_history', 0.03)
+        features.append("H2H History")
+        values.append(h2h_weight * (0.5 if prob_shift > 0 else -0.5))
+
+    # Sort by absolute value (most impactful first)
+    sorted_pairs = sorted(zip(features, values), key=lambda x: abs(x[1]), reverse=True)
+    features = [p[0] for p in sorted_pairs]
+    values = [p[1] for p in sorted_pairs]
+
+    return features, values
+
+
+def render_star_impact_section(pred: dict, game_key_base: str):
+    """Render the star player impact section"""
+    star_impact = pred.get('star_impact', {})
+
+    if not star_impact:
+        st.info("No star player impact data available for this game.")
+        return
+
+    # Summary metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        home_impact = star_impact.get('home_impact', 0)
+        delta_color = "normal" if home_impact >= 0 else "inverse"
+        st.metric(
+            "Home Star Impact",
+            f"{home_impact*100:+.1f}%",
+            delta=f"{'Boost' if home_impact >= 0 else 'Penalty'}",
+            delta_color=delta_color
+        )
+    with col2:
+        away_impact = star_impact.get('away_impact', 0)
+        delta_color = "normal" if away_impact >= 0 else "inverse"
+        st.metric(
+            "Away Star Impact",
+            f"{away_impact*100:+.1f}%",
+            delta=f"{'Boost' if away_impact >= 0 else 'Penalty'}",
+            delta_color=delta_color
+        )
+    with col3:
+        net_impact = star_impact.get('net_impact', 0)
+        st.metric(
+            "Net Impact (Home)",
+            f"{net_impact*100:+.2f}%",
+            delta=f"Weight: {star_impact.get('weight', 0.2)*100:.0f}%"
+        )
+
+    st.markdown("---")
+
+    # Home team stars
+    home_stars = star_impact.get('home_stars', [])
+    away_stars = star_impact.get('away_stars', [])
+
+    star_col1, star_col2 = st.columns(2)
+
+    with star_col1:
+        st.markdown(f"**{pred.get('home_team', 'Home')} Stars**")
+        if home_stars:
+            for star in home_stars:
+                status = star.get('status', 'unknown')
+                status_emoji = "✅" if status == "available" else "❌" if status == "out" else "⚠️"
+                tier = star.get('tier', 0)
+                tier_label = {1: "MVP", 2: "All-Star", 3: "Starter", 4: "Role"}.get(tier, "")
+                impact = star.get('impact_applied', 0)
+
+                st.markdown(
+                    f"{status_emoji} **{star.get('player_name', 'Unknown')}** "
+                    f"({tier_label}, Tier {tier})"
+                )
+                st.caption(f"Status: {status.title()} | Impact: {impact*100:+.1f}%")
+        else:
+            st.caption("No tracked star players")
+
+    with star_col2:
+        st.markdown(f"**{pred.get('away_team', 'Away')} Stars**")
+        if away_stars:
+            for star in away_stars:
+                status = star.get('status', 'unknown')
+                status_emoji = "✅" if status == "available" else "❌" if status == "out" else "⚠️"
+                tier = star.get('tier', 0)
+                tier_label = {1: "MVP", 2: "All-Star", 3: "Starter", 4: "Role"}.get(tier, "")
+                impact = star.get('impact_applied', 0)
+
+                st.markdown(
+                    f"{status_emoji} **{star.get('player_name', 'Unknown')}** "
+                    f"({tier_label}, Tier {tier})"
+                )
+                st.caption(f"Status: {status.title()} | Impact: {impact*100:+.1f}%")
+        else:
+            st.caption("No tracked star players")
+
+
+def render_team_form_section(pred: dict, game_key_base: str):
+    """Render the team form section with recent performance data"""
+    team_form = pred.get('team_form', {})
+
+    if not team_form:
+        st.info("No team form data available for this game.")
+        return
+
+    # Form adjustment summary
+    form_adjustment = team_form.get('form_adjustment', 0)
+    adj_direction = "favors Home" if form_adjustment > 0 else "favors Away" if form_adjustment < 0 else "neutral"
+
+    st.metric(
+        "Form Adjustment",
+        f"{form_adjustment*100:+.2f}%",
+        delta=adj_direction
+    )
+
+    st.markdown("---")
+
+    # Team form details
+    home_form = team_form.get('home_form', {})
+    away_form = team_form.get('away_form', {})
+
+    form_col1, form_col2 = st.columns(2)
+
+    with form_col1:
+        st.markdown(f"**{pred.get('home_team', 'Home')} Recent Form**")
+        if home_form:
+            metric_col1, metric_col2 = st.columns(2)
+            with metric_col1:
+                st.metric("Last 5", home_form.get('record_last_5', 'N/A'))
+                net_rating_5 = home_form.get('net_rating_last_5', 0)
+                st.metric("Net Rating (5)", f"{net_rating_5:+.1f}")
+            with metric_col2:
+                st.metric("Last 10", home_form.get('record_last_10', 'N/A'))
+                net_rating_10 = home_form.get('net_rating_last_10', 0)
+                st.metric("Net Rating (10)", f"{net_rating_10:+.1f}")
+
+            # Point differential
+            pt_diff_5 = home_form.get('point_diff_last_5', 0)
+            pt_diff_10 = home_form.get('point_diff_last_10', 0)
+            st.caption(f"Pt Diff: Last 5: {pt_diff_5:+.1f} | Last 10: {pt_diff_10:+.1f}")
+        else:
+            st.caption("No form data available")
+
+    with form_col2:
+        st.markdown(f"**{pred.get('away_team', 'Away')} Recent Form**")
+        if away_form:
+            metric_col1, metric_col2 = st.columns(2)
+            with metric_col1:
+                st.metric("Last 5", away_form.get('record_last_5', 'N/A'))
+                net_rating_5 = away_form.get('net_rating_last_5', 0)
+                st.metric("Net Rating (5)", f"{net_rating_5:+.1f}")
+            with metric_col2:
+                st.metric("Last 10", away_form.get('record_last_10', 'N/A'))
+                net_rating_10 = away_form.get('net_rating_last_10', 0)
+                st.metric("Net Rating (10)", f"{net_rating_10:+.1f}")
+
+            # Point differential
+            pt_diff_5 = away_form.get('point_diff_last_5', 0)
+            pt_diff_10 = away_form.get('point_diff_last_10', 0)
+            st.caption(f"Pt Diff: Last 5: {pt_diff_5:+.1f} | Last 10: {pt_diff_10:+.1f}")
+        else:
+            st.caption("No form data available")
+
+
 def fetch_predictions_from_api(sport: str, date: str = None):
     """Fetch predictions from the backend API for a specific date"""
     api_client = get_api_client()
@@ -663,20 +918,47 @@ def fetch_predictions_from_api(sport: str, date: str = None):
                     except Exception:
                         game_time = game_date_str
 
-                over_under = pred.get(
-                    "over_under", pred.get("total", "")
-                )
+                # Extract market odds data
+                market_odds = pred.get("market_odds", {})
+                spread = market_odds.get("spread", pred.get("spread", ""))
+                over_under = market_odds.get("over_under", pred.get("over_under", pred.get("total", "")))
+
+                # Extract star impact data
+                star_impact = pred.get("star_impact", {})
+
+                # Extract team form data
+                team_form = pred.get("team_form", {})
+                home_form = team_form.get("home_form", {})
+                away_form = team_form.get("away_form", {})
+
+                # Extract feature weights for SHAP
+                feature_weights = pred.get("feature_weights", {})
+
                 transformed.append({
+                    "game_id": pred.get("game_id", ""),
                     "home_team": pred.get("home_team", ""),
                     "away_team": pred.get("away_team", ""),
+                    "home_team_abbr": pred.get("home_team_abbr", ""),
+                    "away_team_abbr": pred.get("away_team_abbr", ""),
                     "home_win_prob": home_prob,
+                    "away_win_prob": pred.get("away_win_probability", 1 - home_prob),
                     "confidence": pred.get("confidence", 0.5),
+                    "predicted_winner": pred.get("predicted_winner", ""),
+                    "predicted_winner_name": pred.get("predicted_winner_name", ""),
                     "game_time": game_time,
                     "venue": pred.get("venue", ""),
-                    "spread": pred.get("spread", ""),
+                    "spread": spread,
                     "over_under": over_under,
-                    "home_record": pred.get("home_record", ""),
-                    "away_record": pred.get("away_record", "")
+                    "home_record": home_form.get("record_last_10", pred.get("home_record", "")),
+                    "away_record": away_form.get("record_last_10", pred.get("away_record", "")),
+                    # New detailed data
+                    "base_home_probability": pred.get("base_home_probability", home_prob),
+                    "base_away_probability": pred.get("base_away_probability", 1 - home_prob),
+                    "market_odds": market_odds,
+                    "star_impact": star_impact,
+                    "team_form": team_form,
+                    "feature_weights": feature_weights,
+                    "predicted_at": pred.get("predicted_at", "")
                 })
             return transformed
         return []
