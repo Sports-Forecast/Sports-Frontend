@@ -1,201 +1,374 @@
 # Sports Prediction Platform
 
-## User Guide
+<div align="center">
 
-Welcome to the Sports Prediction Platform - your AI-powered companion for smarter sports betting decisions across NBA, NFL, MLB, and NHL.
+![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
+![Plotly](https://img.shields.io/badge/Plotly-5.18+-3F4F75?style=for-the-badge&logo=plotly&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+**AI-powered sports prediction platform with real-time market integration**
+
+[Live Demo](https://sports-predictors.streamlit.app) · [Backend API](https://github.com/OsamaASidd/Sports-Prediction-Platform) · [Report Bug](https://github.com/OsamaASidd/Sports-Prediction-Platform/issues)
+
+</div>
 
 ---
 
-## Getting Started
+## Overview
 
-### Accessing the Platform
+The Sports Prediction Platform is a comprehensive analytics dashboard for game predictions across **NFL, NBA, MLB, and NHL**. It leverages ensemble machine learning models processing **20+ features per game** including team form, player injuries, market signals, and sport-specific metrics.
 
-Visit the live platform at: **[sports-predictors.streamlit.app](https://sports-predictors.streamlit.app)**
+### Key Features
 
-No installation required - simply open the link in any modern web browser (Chrome, Firefox, Safari, Edge).
+| Feature | Description |
+|---------|-------------|
+| **Multi-Sport Support** | Full dashboards for NFL, NBA, MLB, and NHL |
+| **Live Predictions** | Real-time game predictions with blinking LIVE indicator |
+| **SHAP Explainability** | Visual feature importance breakdown for every prediction |
+| **Market Odds Integration** | Spread, over/under, and betting line analysis from API-Sports |
+| **Player Impact Tracking** | Track how injuries and star availability affect outcomes |
+| **Team Form Analytics** | Recent performance metrics and trends |
+| **Monte Carlo Simulations** | Probability distributions for game outcomes |
+| **Export Capabilities** | Download predictions as CSV or PDF |
 
 ---
 
-## Platform Overview
+## Screenshots
 
 ### Main Dashboard
-![Dashboard](screenshots/dashboard.png)
+The overview dashboard provides at-a-glance metrics across all sports with model accuracy tracking.
 
-The Dashboard gives you a quick snapshot of:
-- Today's predictions across all sports
-- Overall model accuracy (last 7 days)
-- Performance metrics for each sport
+### Sport-Specific Predictions
+Each sport dashboard includes detailed game cards with expandable analysis featuring three tabs:
 
-### NBA Predictions View
-![NBA Dashboard](screenshots/nba_dashboard.png)
-
----
-
-## Navigation
-
-Use the sidebar menu on the left to navigate between sections:
-
-| Section | What You'll Find |
-|---------|------------------|
-| **Dashboard** | Overview of all predictions and accuracy stats |
-| **🏀 NBA** | Basketball game predictions |
-| **🏈 NFL** | Football game predictions |
-| **⚾ MLB** | Baseball game predictions |
-| **🏒 NHL** | Hockey game predictions |
-| **Models** | Information about prediction models |
-| **Simulations** | Monte Carlo simulation results |
-| **Backtesting** | Historical accuracy data |
+| Tab | Contents |
+|-----|----------|
+| **Feature Impact** | SHAP waterfall chart + Monte Carlo simulation + Market Odds Analysis |
+| **Star Players** | Player availability, tier ratings, and individual impact percentages |
+| **Team Form** | Recent records, net ratings, and sport-specific performance metrics |
 
 ---
 
-## How to View Predictions
+## Prediction Features by Sport
 
-### Step 1: Select a Sport
-Click on any sport from the sidebar (NBA, NFL, MLB, or NHL).
+### 🏀 NBA Basketball
 
-### Step 2: Choose a Date
-Use the date picker at the top of the page to select the date you want predictions for.
+| Feature Category | Weight | Metrics |
+|------------------|--------|---------|
+| **Team Form** | 70% | Net Rating (5/10 games), Point Differential |
+| **Star Players** | 20% | MVP/All-Star/Starter/Role tiers with availability status |
+| **Home Court** | 8% | Home advantage adjustment |
+| **Market Odds** | 20% | Spread adjustment, total adjustment |
 
-### Step 3: Review Predictions
-Each game card shows:
-- **Teams playing** (Home vs Away)
-- **Win probability** for each team
-- **Confidence score** - how sure the model is about the prediction
-- **Game time** and venue
-
----
-
-## Understanding the Predictions
-
-### Win Probability
-This is the model's calculated chance of each team winning, shown as a percentage (0-100%).
-
-**Example:** If Team A shows 65% and Team B shows 35%, the model predicts Team A is more likely to win.
-
-### Confidence Score
-This tells you how confident the model is in its prediction:
-
-| Confidence | Meaning |
-|------------|---------|
-| **High (70%+)** | Strong prediction - the model sees clear factors favoring one team |
-| **Medium (55-70%)** | Moderate confidence - some uncertainty exists |
-| **Low (<55%)** | Toss-up game - either team could win |
-
-### Color Coding
-- **Green** - High confidence, strong prediction
-- **Yellow/Orange** - Medium confidence
-- **Red** - Lower confidence or close matchup
+**SHAP Features Displayed:**
+- Team Form
+- Star Players (with individual player impact)
+- Back-to-Back penalty
+- Market Spread
+- Home Advantage
 
 ---
 
-## Sports Coverage
+### 🏈 NFL Football
 
-### 🏀 NBA (Basketball)
-- Daily game predictions
-- Player impact analysis (how star players affect outcomes)
-- Team form (recent win/loss record)
-- Home court advantage factored in
+| Feature Category | Weight | Metrics |
+|------------------|--------|---------|
+| **Team Form** | 36% | Point differential over last 3-5 games |
+| **QB Impact** | 20% | Quarterback tier (Elite → Below Avg) with passer rating |
+| **Rest & Schedule** | 18% | Rest days advantage/disadvantage |
+| **Turnover Risk** | 18% | Turnover differential analysis |
+| **Home Advantage** | 8% | Home field factor |
+| **Weather** | 5% | Cold, wind, precipitation impacts |
 
-### 🏈 NFL (Football)
-- Weekly matchup predictions
-- Quarterback performance ratings
-- Team momentum analysis
-
-### ⚾ MLB (Baseball)
-- Daily game predictions
-- Starting pitcher impact
-- Venue and weather factors
-
-### 🏒 NHL (Hockey)
-- Daily game predictions
-- Goalie performance tracking
-- Home ice advantage
+**SHAP Features Displayed:**
+- QB Impact
+- Weather
+- Turnover Risk
+- Rest Advantage
+- Team Form
+- Market Spread
 
 ---
 
-## Sidebar Quick Stats
+### ⚾ MLB Baseball
 
-The sidebar displays real-time accuracy statistics:
-- **NFL Accuracy** - Current prediction accuracy for football
-- **NBA Accuracy** - Current prediction accuracy for basketball
-- **MLB Accuracy** - Current prediction accuracy for baseball
-- **NHL Accuracy** - Current prediction accuracy for hockey
+| Feature Category | Weight | Metrics |
+|------------------|--------|---------|
+| **Starting Pitcher** | 60% | ERA, WHIP, K/9, K/BB ratio, Tier (Ace/Quality/Backend) |
+| **Team Offense** | 19% | Runs per game (L7), Run differential |
+| **Bullpen** | 13% | Relief pitcher quality and ERA |
+| **Market Odds** | 22% | Runline adjustment |
+| **Context** | 8% | Venue, weather for outdoor games |
 
-### Backend Status
-At the bottom of the sidebar, you'll see:
-- **🟢 Online** - System is working normally
-- **🔴 Offline** - System is temporarily unavailable
-
----
-
-## Exporting Predictions
-
-You can download predictions for your records:
-
-1. Navigate to the sport predictions page
-2. Look for export buttons (CSV or PDF)
-3. Click to download
-
-**CSV** - Opens in Excel or Google Sheets for further analysis
-**PDF** - Formatted report for printing or sharing
+**SHAP Features Displayed:**
+- Starting Pitcher (with ERA/WHIP stats)
+- Bullpen
+- Team Offense
+- Weather
+- Market Spread
 
 ---
 
-## Tips for Best Results
+### 🏒 NHL Hockey
 
-1. **Check predictions close to game time** - Predictions are updated regularly with the latest data
+| Feature Category | Weight | Metrics |
+|------------------|--------|---------|
+| **Goal Differential** | 32% | Goals for/against over 5/10 games |
+| **Goalie Impact** | 18% | Save%, GAA, Tier (Elite/Starting/Backup) |
+| **Special Teams** | 18% | Power Play %, Penalty Kill % |
+| **Market Odds** | 20% | Puckline adjustment |
+| **Season Record** | 8% | Overall win percentage |
+| **Home Advantage** | 6% | Home ice factor |
 
-2. **Consider confidence scores** - Higher confidence predictions tend to be more reliable
-
-3. **Use as one input** - Combine predictions with your own research for best results
-
-4. **Track accuracy** - Use the Models and Backtesting pages to see how well the system performs
-
-5. **Multiple sports** - The platform covers 4 major leagues, so diversify your analysis
-
----
-
-## Frequently Asked Questions
-
-### How often are predictions updated?
-Predictions are refreshed every time you load the page. For the most current data, simply refresh your browser.
-
-### Why are some games not showing?
-Games only appear for dates when scheduled. If no games are scheduled for that date, the page will indicate this.
-
-### What data goes into the predictions?
-The models analyze:
-- Historical team performance
-- Recent form (last 5-10 games)
-- Home/away factors
-- Key player availability
-- Head-to-head records
-
-### How accurate are the predictions?
-Accuracy varies by sport and is displayed on the sidebar. Historical accuracy can be viewed in the Backtesting section.
-
-### Can I trust these predictions for betting?
-This platform is a decision-support tool. Always:
-- Bet responsibly
-- Never bet more than you can afford to lose
-- Use predictions as one factor in your decision-making
+**SHAP Features Displayed:**
+- Goalie Impact (with Save%/GAA)
+- Goal Differential
+- Special Teams
+- Market Spread
+- Home Advantage
 
 ---
 
-## Need Help?
+## Market Odds Integration
 
-If you encounter any issues or have questions:
-- Report bugs: [GitHub Issues](https://github.com/OsamaASidd/Sports-Frontend/issues)
-- Backend API docs: [API Documentation](https://sportspredictor-backend-app-6e075ffc23f5.herokuapp.com/docs)
+All predictions incorporate real-time betting market signals from API-Sports:
 
----
-
-## System Requirements
-
-- Any modern web browser (Chrome, Firefox, Safari, Edge)
-- Stable internet connection
-- Desktop or mobile device
+| Metric | Description |
+|--------|-------------|
+| **Spread** | Point spread with ~2.5-3% probability conversion per point |
+| **Over/Under** | Total points/runs/goals line |
+| **Spread Adjustment** | How much the spread moved the prediction (capped at 15-18%) |
+| **Total Adjustment** | How the total line affected analysis |
+| **Data Source** | API-Sports with intelligent fallback defaults |
 
 ---
 
-*Sports Prediction Platform - Making smarter predictions with AI*
+## Live Game Predictions
+
+Click the blinking red **🔴 LIVE** button on any sport dashboard to view games currently in progress:
+
+- **Live Scores**: Updated in real-time
+- **Dynamic Probabilities**: Win percentages adjust as the game progresses
+- **Period/Quarter Display**: Current game state
+- **Live Spread**: Real-time betting line movement
+
+---
+
+## Installation
+
+### Prerequisites
+
+- Python 3.9+
+- Backend API running (see [Backend Repository](https://github.com/OsamaASidd/Sports-Prediction-Platform))
+
+### Quick Start
+
+```bash
+# Clone the repository
+git clone https://github.com/OsamaASidd/Sports-Prediction-Platform.git
+cd "Predictive Frontend"
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your API_BASE_URL
+
+# Run the application
+streamlit run app.py
+```
+
+### Environment Variables
+
+```env
+# Backend API Configuration
+API_BASE_URL=http://localhost:8000
+API_TIMEOUT=30
+
+# Application Settings
+DEBUG_MODE=false
+```
+
+---
+
+## Project Structure
+
+```
+Predictive Frontend/
+├── app.py                    # Main Streamlit application
+├── config.py                 # Configuration and environment variables
+├── requirements.txt          # Python dependencies
+├── .env                      # Environment variables
+│
+├── components/               # Reusable UI components
+│   ├── cards.py              # Prediction, stat, model cards
+│   ├── header.py             # Page headers and breadcrumbs
+│   ├── sidebar.py            # Navigation menu and quick stats
+│   └── status_panel.py       # Backend status and notifications
+│
+├── pages/                    # Application pages
+│   ├── dashboard.py          # Main overview dashboard
+│   ├── sport_dashboard.py    # Sport-specific dashboards
+│   ├── models.py             # ML model management
+│   ├── simulations.py        # Monte Carlo simulations
+│   ├── backtesting.py        # Historical backtesting
+│   ├── logs.py               # System logs viewer
+│   └── settings.py           # Application settings
+│
+└── utils/                    # Utility modules
+    ├── api_client.py         # Backend API communication
+    ├── charts.py             # Plotly chart generators
+    ├── export.py             # CSV/PDF export functions
+    └── styles.py             # Custom CSS (Fluent Design theme)
+```
+
+---
+
+## API Endpoints
+
+### Predictions
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/predict/nba` | NBA daily predictions with star player impact |
+| `GET /api/predict/nfl` | NFL predictions with QB and weather adjustments |
+| `GET /api/predict/mlb` | MLB predictions with pitcher analysis |
+| `GET /api/predict/nhl` | NHL predictions with goalie impact |
+| `GET /api/predict/live/{sport}` | Live game predictions |
+
+### Player/Team Data
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/nba/stars` | NBA star player database with tiers |
+| `GET /api/nfl/qbs` | NFL quarterback tier ratings |
+| `GET /api/mlb/pitchers` | MLB pitcher database |
+| `GET /api/nhl/goalies` | NHL goalie database |
+| `GET /api/{sport}/team/{abbr}/form` | Team recent form metrics |
+
+### System
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Backend health check |
+| `GET /api/models` | Available ML models |
+| `GET /api/data-sources` | Data source configuration |
+
+---
+
+## Styling & Theme
+
+The platform uses a modern **Fluent Design-inspired** dark theme:
+
+### Color Palette
+
+| Variable | Color | Usage |
+|----------|-------|-------|
+| `--primary` | `#0078D4` | Primary actions, selected states |
+| `--accent` | `#00BCF2` | Highlights, links |
+| `--success` | `#4CAF50` | Positive indicators, high confidence |
+| `--warning` | `#FF9800` | Medium confidence, alerts |
+| `--error` | `#F44336` | LIVE button, negative indicators |
+| `--bg-dark` | `#1E1E1E` | Main background |
+| `--surface` | `#2D2D30` | Card backgrounds |
+
+### Custom Animations
+
+- **LIVE Button**: Pulsing red glow animation
+- **Live Game Cards**: Red border with blinking LIVE badge
+- **Hover Effects**: Smooth transitions on all interactive elements
+
+---
+
+## Dependencies
+
+```
+streamlit>=1.28.0
+streamlit-option-menu>=0.3.6
+streamlit-autorefresh>=1.0.1
+plotly>=5.18.0
+pandas>=2.0.0
+numpy>=1.24.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+fpdf2>=2.7.0
+```
+
+---
+
+## Usage Tips
+
+1. **Check predictions close to game time** - Data updates regularly with latest information
+2. **Consider confidence scores** - Higher confidence (70%+) predictions tend to be more reliable
+3. **Expand detailed analysis** - Click "View Detailed Analysis" for SHAP explanations
+4. **Track player injuries** - The Star Players tab shows who's out and impact
+5. **Use export features** - Download CSV for your own analysis
+
+---
+
+## Troubleshooting
+
+### Backend Connection Issues
+```
+Error: "Connection failed. Is the backend running?"
+```
+**Solution**: Verify `API_BASE_URL` in `.env` and ensure backend is running
+
+### Clear Cache
+```bash
+streamlit cache clear
+```
+
+### Different Port
+```bash
+streamlit run app.py --server.port 8502
+```
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgments
+
+- [Streamlit](https://streamlit.io/) - Data app framework
+- [Plotly](https://plotly.com/) - Interactive visualizations
+- [API-Sports](https://api-sports.io/) - Sports data provider
+- [SHAP](https://shap.readthedocs.io/) - ML explainability
+
+---
+
+## Contact
+
+**Osama Siddiqui** - [@OsamaASidd](https://github.com/OsamaASidd)
+
+**Live Platform**: [sports-predictors.streamlit.app](https://sports-predictors.streamlit.app)
+
+**Backend API Docs**: [API Documentation](https://sportspredictor-backend-app-6e075ffc23f5.herokuapp.com/docs)
+
+---
+
+<div align="center">
+
+**Sports Prediction Platform** - Making smarter predictions with AI
+
+</div>

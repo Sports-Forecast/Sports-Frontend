@@ -223,8 +223,8 @@ def render_predictions_tab(sport: str, color: str):
 
                     with detail_col2:
                         st.markdown("**Feature Importance (SHAP)**")
-                        # Build SHAP features from actual API data
-                        features, values = build_shap_features(pred)
+                        # Build SHAP features from actual API data (sport-specific)
+                        features, values = build_shap_features(pred, sport)
                         shap_fig = create_shap_waterfall(features, values)
                         st.plotly_chart(
                             shap_fig, width="stretch",
@@ -251,10 +251,10 @@ def render_predictions_tab(sport: str, color: str):
                             st.metric("Total Impact", f"{total_adj*100:+.2f}%")
 
                 with analysis_tab2:
-                    render_star_impact_section(pred, game_key_base)
+                    render_star_impact_section(pred, game_key_base, sport)
 
                 with analysis_tab3:
-                    render_team_form_section(pred, game_key_base)
+                    render_team_form_section(pred, game_key_base, sport)
 
 
 def render_team_analysis_tab(sport: str, color: str):
@@ -637,66 +637,156 @@ def render_live_game_card(game: dict, sport: str, color: str):
         st.write("")  # Spacing between cards
 
 
-def build_shap_features(pred: dict) -> tuple:
-    """Build SHAP feature names and values from prediction data"""
+def build_shap_features(pred: dict, sport: str = "NBA") -> tuple:
+    """Build SHAP feature names and values from prediction data - sport-specific"""
     features = []
     values = []
 
-    # Get team form data
+    # Get common data
     team_form = pred.get('team_form', {})
     form_adjustment = team_form.get('form_adjustment', 0)
-
-    # Get star impact data
     star_impact = pred.get('star_impact', {})
     net_star_impact = star_impact.get('net_impact', 0)
-
-    # Get market odds data
     market_odds = pred.get('market_odds', {})
     spread_adjustment = market_odds.get('spread_adjustment', 0)
     total_adjustment = market_odds.get('total_adjustment', 0)
-
-    # Get feature weights for reference
     feature_weights = pred.get('feature_weights', {})
+    adjustments = pred.get('adjustments', {})
 
-    # Build features based on available data
-    # Form adjustment (recent performance)
-    if form_adjustment != 0:
-        features.append("Recent Form")
-        values.append(form_adjustment)
+    # Calculate probability shift for direction hints
+    base_prob = pred.get('base_home_probability', 0.5)
+    final_prob = pred.get('home_win_prob', 0.5)
+    prob_shift = final_prob - base_prob
 
-    # Star player impact
-    if net_star_impact != 0:
-        features.append("Star Players")
-        values.append(net_star_impact)
+    # ===== NFL-SPECIFIC FEATURES =====
+    if sport.upper() == "NFL":
+        # QB adjustment (20% weight in NFL)
+        qb_adj = adjustments.get('qb_adjustment', 0)
+        if qb_adj != 0:
+            features.append("QB Impact")
+            values.append(qb_adj)
 
+        # Weather adjustment (5% weight)
+        weather_adj = adjustments.get('weather_adjustment', 0)
+        if weather_adj != 0:
+            features.append("Weather")
+            values.append(weather_adj)
+
+        # Turnover adjustment (18% weight)
+        turnover_adj = adjustments.get('turnover_adjustment', 0)
+        if turnover_adj != 0:
+            features.append("Turnover Risk")
+            values.append(turnover_adj)
+
+        # Rest adjustment (18% weight)
+        rest_adj = adjustments.get('rest_adjustment', 0)
+        if rest_adj != 0:
+            features.append("Rest Advantage")
+            values.append(rest_adj)
+
+        # Form (36% weight)
+        if form_adjustment != 0:
+            features.append("Team Form")
+            values.append(form_adjustment)
+
+    # ===== MLB-SPECIFIC FEATURES =====
+    elif sport.upper() == "MLB":
+        # Pitcher impact (60% of variance)
+        pitcher_impact = pred.get('pitcher_impact', {})
+        home_pitcher_adj = pitcher_impact.get('home_starter_impact', 0)
+        away_pitcher_adj = pitcher_impact.get('away_starter_impact', 0)
+        net_pitcher = home_pitcher_adj - away_pitcher_adj
+
+        if net_pitcher != 0:
+            features.append("Starting Pitcher")
+            values.append(net_pitcher)
+        elif adjustments.get('pitcher_adjustment', 0) != 0:
+            features.append("Starting Pitcher")
+            values.append(adjustments.get('pitcher_adjustment', 0))
+
+        # Bullpen impact (13%)
+        bullpen_adj = adjustments.get('bullpen_adjustment', 0)
+        if bullpen_adj != 0:
+            features.append("Bullpen")
+            values.append(bullpen_adj)
+
+        # Team offense (19%)
+        if form_adjustment != 0:
+            features.append("Team Offense")
+            values.append(form_adjustment)
+
+        # Weather for outdoor games
+        weather_adj = adjustments.get('weather_adjustment', 0)
+        if weather_adj != 0:
+            features.append("Weather")
+            values.append(weather_adj)
+
+    # ===== NHL-SPECIFIC FEATURES =====
+    elif sport.upper() == "NHL":
+        # Goalie impact (18% weight)
+        goalie_impact = pred.get('goalie_impact', {})
+        net_goalie = goalie_impact.get('net_impact', 0)
+        if net_goalie != 0:
+            features.append("Goalie Impact")
+            values.append(net_goalie)
+        elif net_star_impact != 0:
+            features.append("Goalie Impact")
+            values.append(net_star_impact)
+
+        # Goal differential (32% weight)
+        if form_adjustment != 0:
+            features.append("Goal Differential")
+            values.append(form_adjustment)
+
+        # Special teams (18% weight)
+        special_teams = pred.get('special_teams', {})
+        pp_diff = special_teams.get('power_play_diff', 0)
+        pk_diff = special_teams.get('penalty_kill_diff', 0)
+        if pp_diff != 0 or pk_diff != 0:
+            features.append("Special Teams")
+            values.append((pp_diff + pk_diff) / 2 * 0.18)
+
+    # ===== NBA-SPECIFIC FEATURES =====
+    else:  # NBA default
+        # Team form (70% signal)
+        if form_adjustment != 0:
+            features.append("Team Form")
+            values.append(form_adjustment)
+
+        # Star player impact (20%)
+        if net_star_impact != 0:
+            features.append("Star Players")
+            values.append(net_star_impact)
+
+        # Back-to-back penalty
+        if pred.get('back_to_back_home') or pred.get('back_to_back_away'):
+            b2b_penalty = -0.03 if pred.get('back_to_back_home') else 0.03
+            features.append("Back-to-Back")
+            values.append(b2b_penalty)
+
+    # ===== COMMON FEATURES FOR ALL SPORTS =====
     # Market spread signal
     if spread_adjustment != 0:
         features.append("Market Spread")
         values.append(spread_adjustment)
 
-    # Market total signal
+    # Market total/over-under signal
     if total_adjustment != 0:
         features.append("Market Total")
         values.append(total_adjustment)
 
-    # Home advantage (estimated from feature weights)
+    # Home advantage
     home_adv_weight = feature_weights.get('home_advantage', 0.08)
     if home_adv_weight > 0:
         features.append("Home Advantage")
-        values.append(home_adv_weight)
+        values.append(home_adv_weight * (1 if prob_shift >= 0 else -0.5))
 
-    # If we have very few features, add some defaults based on probability shift
-    base_prob = pred.get('base_home_probability', 0.5)
-    final_prob = pred.get('home_win_prob', 0.5)
-    prob_shift = final_prob - base_prob
-
+    # Ensure minimum features
     if len(features) < 3:
-        # Add rest days impact (estimated)
         rest_weight = feature_weights.get('rest_days', 0.05)
         features.append("Rest Days")
         values.append(rest_weight * (0.5 if prob_shift > 0 else -0.5))
 
-        # Add H2H history (estimated)
         h2h_weight = feature_weights.get('h2h_history', 0.03)
         features.append("H2H History")
         values.append(h2h_weight * (0.5 if prob_shift > 0 else -0.5))
@@ -709,94 +799,186 @@ def build_shap_features(pred: dict) -> tuple:
     return features, values
 
 
-def render_star_impact_section(pred: dict, game_key_base: str):
-    """Render the star player impact section"""
-    star_impact = pred.get('star_impact', {})
+def render_star_impact_section(pred: dict, game_key_base: str, sport: str = "NBA"):
+    """Render the star/key player impact section - sport-specific"""
 
-    if not star_impact:
-        st.info("No star player impact data available for this game.")
+    # Get sport-specific impact data
+    star_impact = pred.get('star_impact', {})
+    pitcher_impact = pred.get('pitcher_impact', {})
+    goalie_impact = pred.get('goalie_impact', {})
+    qb_impact = pred.get('qb_impact', {})
+
+    # Determine section title and data based on sport
+    sport_upper = sport.upper()
+    if sport_upper == "NFL":
+        section_title = "Quarterback Impact"
+        impact_data = qb_impact if qb_impact else star_impact
+        tier_labels = {1: "Elite", 2: "Above Avg", 3: "Average", 4: "Below Avg"}
+        player_label = "QB"
+    elif sport_upper == "MLB":
+        section_title = "Starting Pitcher Impact"
+        impact_data = pitcher_impact if pitcher_impact else star_impact
+        tier_labels = {1: "Ace", 2: "Quality", 3: "Backend"}
+        player_label = "SP"
+    elif sport_upper == "NHL":
+        section_title = "Goalie Impact"
+        impact_data = goalie_impact if goalie_impact else star_impact
+        tier_labels = {1: "Elite", 2: "Starting", 3: "Backup"}
+        player_label = "G"
+    else:  # NBA
+        section_title = "Star Player Impact"
+        impact_data = star_impact
+        tier_labels = {1: "MVP", 2: "All-Star", 3: "Starter", 4: "Role"}
+        player_label = "Star"
+
+    if not impact_data:
+        st.info(f"No {section_title.lower()} data available for this game.")
         return
+
+    st.markdown(f"### {section_title}")
 
     # Summary metrics
     col1, col2, col3 = st.columns(3)
     with col1:
-        home_impact = star_impact.get('home_impact', 0)
+        home_impact = impact_data.get('home_impact', 0)
         delta_color = "normal" if home_impact >= 0 else "inverse"
         st.metric(
-            "Home Star Impact",
+            f"Home {player_label} Impact",
             f"{home_impact*100:+.1f}%",
             delta=f"{'Boost' if home_impact >= 0 else 'Penalty'}",
             delta_color=delta_color
         )
     with col2:
-        away_impact = star_impact.get('away_impact', 0)
+        away_impact = impact_data.get('away_impact', 0)
         delta_color = "normal" if away_impact >= 0 else "inverse"
         st.metric(
-            "Away Star Impact",
+            f"Away {player_label} Impact",
             f"{away_impact*100:+.1f}%",
             delta=f"{'Boost' if away_impact >= 0 else 'Penalty'}",
             delta_color=delta_color
         )
     with col3:
-        net_impact = star_impact.get('net_impact', 0)
+        net_impact = impact_data.get('net_impact', 0)
+        weight = impact_data.get('weight', 0.2)
         st.metric(
             "Net Impact (Home)",
             f"{net_impact*100:+.2f}%",
-            delta=f"Weight: {star_impact.get('weight', 0.2)*100:.0f}%"
+            delta=f"Weight: {weight*100:.0f}%"
         )
 
     st.markdown("---")
 
-    # Home team stars
-    home_stars = star_impact.get('home_stars', [])
-    away_stars = star_impact.get('away_stars', [])
+    # Get players list - handle different field names per sport
+    home_players = (impact_data.get('home_stars', []) or
+                    impact_data.get('home_qbs', []) or
+                    impact_data.get('home_pitchers', []) or
+                    impact_data.get('home_goalies', []) or [])
+    away_players = (impact_data.get('away_stars', []) or
+                    impact_data.get('away_qbs', []) or
+                    impact_data.get('away_pitchers', []) or
+                    impact_data.get('away_goalies', []) or [])
 
-    star_col1, star_col2 = st.columns(2)
+    player_col1, player_col2 = st.columns(2)
 
-    with star_col1:
-        st.markdown(f"**{pred.get('home_team', 'Home')} Stars**")
-        if home_stars:
-            for star in home_stars:
-                status = star.get('status', 'unknown')
-                status_emoji = "✅" if status == "available" else "❌" if status == "out" else "⚠️"
-                tier = star.get('tier', 0)
-                tier_label = {1: "MVP", 2: "All-Star", 3: "Starter", 4: "Role"}.get(tier, "")
-                impact = star.get('impact_applied', 0)
-
-                st.markdown(
-                    f"{status_emoji} **{star.get('player_name', 'Unknown')}** "
-                    f"({tier_label}, Tier {tier})"
-                )
-                st.caption(f"Status: {status.title()} | Impact: {impact*100:+.1f}%")
+    with player_col1:
+        st.markdown(f"**{pred.get('home_team', 'Home')}**")
+        if home_players:
+            for player in home_players:
+                render_player_card(player, tier_labels, sport_upper)
         else:
-            st.caption("No tracked star players")
+            st.caption(f"No tracked {player_label}s")
 
-    with star_col2:
-        st.markdown(f"**{pred.get('away_team', 'Away')} Stars**")
-        if away_stars:
-            for star in away_stars:
-                status = star.get('status', 'unknown')
-                status_emoji = "✅" if status == "available" else "❌" if status == "out" else "⚠️"
-                tier = star.get('tier', 0)
-                tier_label = {1: "MVP", 2: "All-Star", 3: "Starter", 4: "Role"}.get(tier, "")
-                impact = star.get('impact_applied', 0)
-
-                st.markdown(
-                    f"{status_emoji} **{star.get('player_name', 'Unknown')}** "
-                    f"({tier_label}, Tier {tier})"
-                )
-                st.caption(f"Status: {status.title()} | Impact: {impact*100:+.1f}%")
+    with player_col2:
+        st.markdown(f"**{pred.get('away_team', 'Away')}**")
+        if away_players:
+            for player in away_players:
+                render_player_card(player, tier_labels, sport_upper)
         else:
-            st.caption("No tracked star players")
+            st.caption(f"No tracked {player_label}s")
+
+    # Sport-specific additional info
+    if sport_upper == "MLB" and pitcher_impact:
+        st.markdown("---")
+        st.markdown("**Pitching Stats**")
+        stats_col1, stats_col2 = st.columns(2)
+        with stats_col1:
+            home_era = pitcher_impact.get('home_starter_era', 'N/A')
+            home_whip = pitcher_impact.get('home_starter_whip', 'N/A')
+            st.caption(f"Home SP: ERA {home_era}, WHIP {home_whip}")
+        with stats_col2:
+            away_era = pitcher_impact.get('away_starter_era', 'N/A')
+            away_whip = pitcher_impact.get('away_starter_whip', 'N/A')
+            st.caption(f"Away SP: ERA {away_era}, WHIP {away_whip}")
+
+    elif sport_upper == "NHL" and goalie_impact:
+        st.markdown("---")
+        st.markdown("**Goalie Stats**")
+        stats_col1, stats_col2 = st.columns(2)
+        with stats_col1:
+            home_sv = goalie_impact.get('home_save_pct', 'N/A')
+            home_gaa = goalie_impact.get('home_gaa', 'N/A')
+            st.caption(f"Home G: SV% {home_sv}, GAA {home_gaa}")
+        with stats_col2:
+            away_sv = goalie_impact.get('away_save_pct', 'N/A')
+            away_gaa = goalie_impact.get('away_gaa', 'N/A')
+            st.caption(f"Away G: SV% {away_sv}, GAA {away_gaa}")
+
+    elif sport_upper == "NFL" and qb_impact:
+        st.markdown("---")
+        st.markdown("**QB Stats**")
+        stats_col1, stats_col2 = st.columns(2)
+        with stats_col1:
+            home_rating = qb_impact.get('home_passer_rating', 'N/A')
+            st.caption(f"Home QB Rating: {home_rating}")
+        with stats_col2:
+            away_rating = qb_impact.get('away_passer_rating', 'N/A')
+            st.caption(f"Away QB Rating: {away_rating}")
 
 
-def render_team_form_section(pred: dict, game_key_base: str):
-    """Render the team form section with recent performance data"""
+def render_player_card(player: dict, tier_labels: dict, sport: str):
+    """Render a single player impact card"""
+    status = player.get('status', 'unknown')
+    status_emoji = "✅" if status == "available" else "❌" if status == "out" else "⚠️"
+    tier = player.get('tier', 0)
+    tier_label = tier_labels.get(tier, f"Tier {tier}")
+    impact = player.get('impact_applied', player.get('impact_weight', 0))
+
+    player_name = player.get('player_name', player.get('name', 'Unknown'))
+
+    st.markdown(
+        f"{status_emoji} **{player_name}** ({tier_label})"
+    )
+
+    # Show sport-specific stats
+    if sport == "MLB":
+        era = player.get('era', '')
+        whip = player.get('whip', '')
+        stats_str = f"ERA: {era} | WHIP: {whip}" if era else ""
+        st.caption(f"Status: {status.title()} | Impact: {impact*100:+.1f}% {stats_str}")
+    elif sport == "NHL":
+        sv_pct = player.get('save_pct', '')
+        gaa = player.get('gaa', '')
+        stats_str = f"SV%: {sv_pct} | GAA: {gaa}" if sv_pct else ""
+        st.caption(f"Status: {status.title()} | Impact: {impact*100:+.1f}% {stats_str}")
+    elif sport == "NFL":
+        rating = player.get('passer_rating', '')
+        stats_str = f"Rating: {rating}" if rating else ""
+        st.caption(f"Status: {status.title()} | Impact: {impact*100:+.1f}% {stats_str}")
+    else:
+        st.caption(f"Status: {status.title()} | Impact: {impact*100:+.1f}%")
+
+
+def render_team_form_section(pred: dict, game_key_base: str, sport: str = "NBA"):
+    """Render the team form section with recent performance data - sport-specific"""
     team_form = pred.get('team_form', {})
+    special_teams = pred.get('special_teams', {})
+    adjustments = pred.get('adjustments', {})
 
     if not team_form:
         st.info("No team form data available for this game.")
         return
+
+    sport_upper = sport.upper()
 
     # Form adjustment summary
     form_adjustment = team_form.get('form_adjustment', 0)
@@ -816,23 +998,54 @@ def render_team_form_section(pred: dict, game_key_base: str):
 
     form_col1, form_col2 = st.columns(2)
 
+    # Sport-specific labels
+    if sport_upper == "MLB":
+        diff_label = "Run Diff"
+        period_short = "7"
+        period_long = "10"
+    elif sport_upper == "NHL":
+        diff_label = "Goal Diff"
+        period_short = "5"
+        period_long = "10"
+    else:  # NBA, NFL
+        diff_label = "Pt Diff"
+        period_short = "5"
+        period_long = "10"
+
     with form_col1:
         st.markdown(f"**{pred.get('home_team', 'Home')} Recent Form**")
         if home_form:
             metric_col1, metric_col2 = st.columns(2)
             with metric_col1:
-                st.metric("Last 5", home_form.get('record_last_5', 'N/A'))
-                net_rating_5 = home_form.get('net_rating_last_5', 0)
-                st.metric("Net Rating (5)", f"{net_rating_5:+.1f}")
-            with metric_col2:
-                st.metric("Last 10", home_form.get('record_last_10', 'N/A'))
-                net_rating_10 = home_form.get('net_rating_last_10', 0)
-                st.metric("Net Rating (10)", f"{net_rating_10:+.1f}")
+                record_short = home_form.get(f'record_last_{period_short}', home_form.get('record_last_5', 'N/A'))
+                st.metric(f"Last {period_short}", record_short)
 
-            # Point differential
-            pt_diff_5 = home_form.get('point_diff_last_5', 0)
-            pt_diff_10 = home_form.get('point_diff_last_10', 0)
-            st.caption(f"Pt Diff: Last 5: {pt_diff_5:+.1f} | Last 10: {pt_diff_10:+.1f}")
+                # Net rating or equivalent
+                if sport_upper == "NBA":
+                    net_rating = home_form.get('net_rating_last_5', 0)
+                    st.metric("Net Rating", f"{net_rating:+.1f}")
+                elif sport_upper == "NHL":
+                    xg_diff = home_form.get('xg_diff_last_5', home_form.get('goal_diff_last_5', 0))
+                    st.metric("xG Diff", f"{xg_diff:+.1f}")
+
+            with metric_col2:
+                record_long = home_form.get(f'record_last_{period_long}', home_form.get('record_last_10', 'N/A'))
+                st.metric(f"Last {period_long}", record_long)
+
+                if sport_upper == "NBA":
+                    net_rating_10 = home_form.get('net_rating_last_10', 0)
+                    st.metric("Net Rating (10)", f"{net_rating_10:+.1f}")
+
+            # Differential
+            diff_short = home_form.get(f'point_diff_last_{period_short}',
+                         home_form.get(f'goal_diff_last_{period_short}',
+                         home_form.get(f'run_diff_last_{period_short}',
+                         home_form.get('point_diff_last_5', 0))))
+            diff_long = home_form.get(f'point_diff_last_{period_long}',
+                        home_form.get(f'goal_diff_last_{period_long}',
+                        home_form.get(f'run_diff_last_{period_long}',
+                        home_form.get('point_diff_last_10', 0))))
+            st.caption(f"{diff_label}: L{period_short}: {diff_short:+.1f} | L{period_long}: {diff_long:+.1f}")
         else:
             st.caption("No form data available")
 
@@ -841,20 +1054,77 @@ def render_team_form_section(pred: dict, game_key_base: str):
         if away_form:
             metric_col1, metric_col2 = st.columns(2)
             with metric_col1:
-                st.metric("Last 5", away_form.get('record_last_5', 'N/A'))
-                net_rating_5 = away_form.get('net_rating_last_5', 0)
-                st.metric("Net Rating (5)", f"{net_rating_5:+.1f}")
-            with metric_col2:
-                st.metric("Last 10", away_form.get('record_last_10', 'N/A'))
-                net_rating_10 = away_form.get('net_rating_last_10', 0)
-                st.metric("Net Rating (10)", f"{net_rating_10:+.1f}")
+                record_short = away_form.get(f'record_last_{period_short}', away_form.get('record_last_5', 'N/A'))
+                st.metric(f"Last {period_short}", record_short)
 
-            # Point differential
-            pt_diff_5 = away_form.get('point_diff_last_5', 0)
-            pt_diff_10 = away_form.get('point_diff_last_10', 0)
-            st.caption(f"Pt Diff: Last 5: {pt_diff_5:+.1f} | Last 10: {pt_diff_10:+.1f}")
+                if sport_upper == "NBA":
+                    net_rating = away_form.get('net_rating_last_5', 0)
+                    st.metric("Net Rating", f"{net_rating:+.1f}")
+                elif sport_upper == "NHL":
+                    xg_diff = away_form.get('xg_diff_last_5', away_form.get('goal_diff_last_5', 0))
+                    st.metric("xG Diff", f"{xg_diff:+.1f}")
+
+            with metric_col2:
+                record_long = away_form.get(f'record_last_{period_long}', away_form.get('record_last_10', 'N/A'))
+                st.metric(f"Last {period_long}", record_long)
+
+                if sport_upper == "NBA":
+                    net_rating_10 = away_form.get('net_rating_last_10', 0)
+                    st.metric("Net Rating (10)", f"{net_rating_10:+.1f}")
+
+            diff_short = away_form.get(f'point_diff_last_{period_short}',
+                         away_form.get(f'goal_diff_last_{period_short}',
+                         away_form.get(f'run_diff_last_{period_short}',
+                         away_form.get('point_diff_last_5', 0))))
+            diff_long = away_form.get(f'point_diff_last_{period_long}',
+                        away_form.get(f'goal_diff_last_{period_long}',
+                        away_form.get(f'run_diff_last_{period_long}',
+                        away_form.get('point_diff_last_10', 0))))
+            st.caption(f"{diff_label}: L{period_short}: {diff_short:+.1f} | L{period_long}: {diff_long:+.1f}")
         else:
             st.caption("No form data available")
+
+    # Sport-specific additional sections
+    if sport_upper == "NHL" and (special_teams or home_form.get('power_play')):
+        st.markdown("---")
+        st.markdown("**Special Teams**")
+        st_col1, st_col2 = st.columns(2)
+        with st_col1:
+            home_pp = home_form.get('power_play', special_teams.get('home_pp', 'N/A'))
+            home_pk = home_form.get('penalty_kill', special_teams.get('home_pk', 'N/A'))
+            st.caption(f"Home - PP: {home_pp}% | PK: {home_pk}%")
+        with st_col2:
+            away_pp = away_form.get('power_play', special_teams.get('away_pp', 'N/A'))
+            away_pk = away_form.get('penalty_kill', special_teams.get('away_pk', 'N/A'))
+            st.caption(f"Away - PP: {away_pp}% | PK: {away_pk}%")
+
+    elif sport_upper == "MLB":
+        st.markdown("---")
+        st.markdown("**Offensive Stats**")
+        off_col1, off_col2 = st.columns(2)
+        with off_col1:
+            runs_7 = home_form.get('runs_last_7', 'N/A')
+            st.caption(f"Home - Runs/G (L7): {runs_7}")
+        with off_col2:
+            runs_7 = away_form.get('runs_last_7', 'N/A')
+            st.caption(f"Away - Runs/G (L7): {runs_7}")
+
+    elif sport_upper == "NFL":
+        # Show turnover and rest info for NFL
+        st.markdown("---")
+        st.markdown("**Schedule & Turnovers**")
+        nfl_col1, nfl_col2 = st.columns(2)
+        with nfl_col1:
+            turnover_adj = adjustments.get('turnover_adjustment', 0)
+            st.metric("Turnover Adj", f"{turnover_adj*100:+.2f}%")
+        with nfl_col2:
+            rest_adj = adjustments.get('rest_adjustment', 0)
+            st.metric("Rest Adj", f"{rest_adj*100:+.2f}%")
+
+        # Weather if available
+        weather_adj = adjustments.get('weather_adjustment', 0)
+        if weather_adj != 0:
+            st.caption(f"Weather Impact: {weather_adj*100:+.2f}%")
 
 
 def fetch_predictions_from_api(sport: str, date: str = None):
@@ -934,6 +1204,18 @@ def fetch_predictions_from_api(sport: str, date: str = None):
                 # Extract feature weights for SHAP
                 feature_weights = pred.get("feature_weights", {})
 
+                # Extract sport-specific impact data
+                # NFL: QB impact, weather, turnovers
+                qb_impact = pred.get("qb_impact", {})
+                # MLB: Pitcher impact
+                pitcher_impact = pred.get("pitcher_impact", {})
+                # NHL: Goalie impact, special teams
+                goalie_impact = pred.get("goalie_impact", {})
+                special_teams = pred.get("special_teams", {})
+
+                # Extract adjustments object (contains all adjustment breakdowns)
+                adjustments = pred.get("adjustments", {})
+
                 transformed.append({
                     "game_id": pred.get("game_id", ""),
                     "home_team": pred.get("home_team", ""),
@@ -951,13 +1233,25 @@ def fetch_predictions_from_api(sport: str, date: str = None):
                     "over_under": over_under,
                     "home_record": home_form.get("record_last_10", pred.get("home_record", "")),
                     "away_record": away_form.get("record_last_10", pred.get("away_record", "")),
-                    # New detailed data
+                    # Base probabilities
                     "base_home_probability": pred.get("base_home_probability", home_prob),
                     "base_away_probability": pred.get("base_away_probability", 1 - home_prob),
+                    # Common data
                     "market_odds": market_odds,
                     "star_impact": star_impact,
                     "team_form": team_form,
                     "feature_weights": feature_weights,
+                    "adjustments": adjustments,
+                    # NFL-specific
+                    "qb_impact": qb_impact,
+                    # MLB-specific
+                    "pitcher_impact": pitcher_impact,
+                    # NHL-specific
+                    "goalie_impact": goalie_impact,
+                    "special_teams": special_teams,
+                    # Flags
+                    "back_to_back_home": pred.get("back_to_back_home", False),
+                    "back_to_back_away": pred.get("back_to_back_away", False),
                     "predicted_at": pred.get("predicted_at", "")
                 })
             return transformed
