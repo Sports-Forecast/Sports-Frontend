@@ -101,10 +101,10 @@ def render_billing_page():
                     
                     if response.get("success"):
                         checkout_url = response["data"]["checkout_url"]
-                        print('stripe_checkout_url:', checkout_url)
-                        st.write(checkout_url)
+                        # print('stripe_checkout_url:', checkout_url)
+                        # st.write(checkout_url)
                         st.write(f'''
-                            <a target="_self" href="{checkout_url}">
+                            <a target="_blank" href="{checkout_url}">
                                 <button>
                                     Please Continue on Stripe...
                                 </button>
