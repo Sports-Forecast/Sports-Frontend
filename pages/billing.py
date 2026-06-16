@@ -101,6 +101,7 @@ def render_billing_page():
                     
                     if response.get("success"):
                         checkout_url = response["data"]["checkout_url"]
+                        print('stripe_checkout_url:', checkout_url)
                         redirect(checkout_url)
                     else:
                         st.error(f"Failed to initiate checkout: {response.get('error')}")
