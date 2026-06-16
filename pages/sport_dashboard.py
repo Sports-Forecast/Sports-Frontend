@@ -182,6 +182,8 @@ def render_predictions_tab(sport: str, color: str):
             else:
                 spread_display = spread_val
 
+            ml = pred['moneyline_home'] if (pred['predicted_winner'] == pred['home_team_abbr']) else pred['moneyline_away']
+            
             render_prediction_card(
                 home_team=pred['home_team'],
                 away_team=pred['away_team'],
@@ -190,6 +192,7 @@ def render_predictions_tab(sport: str, color: str):
                 game_time=pred['game_time'],
                 venue=pred.get('venue', ''),
                 spread=spread_display,
+                moneyline=ml,
                 over_under=pred.get('over_under', ''),
                 home_record=pred.get('home_record', ''),
                 away_record=pred.get('away_record', '')
@@ -236,17 +239,19 @@ def render_predictions_tab(sport: str, color: str):
                     if market_odds:
                         st.markdown("---")
                         st.markdown("**Market Odds Analysis**")
-                        odds_col1, odds_col2, odds_col3, odds_col4 = st.columns(4)
+                        odds_col1, odds_col2, odds_col3, odds_col4, odds_col5 = st.columns(5)
                         with odds_col1:
+                            st.metric("Moneyline", ml)
+                        with odds_col2:
                             spread_val = market_odds.get('spread', 'N/A')
                             st.metric("Spread", f"{spread_val:+.1f}" if isinstance(spread_val, (int, float)) else spread_val)
-                        with odds_col2:
+                        with odds_col3:
                             ou_val = market_odds.get('over_under', 'N/A')
                             st.metric("Over/Under", f"{ou_val}" if ou_val else "N/A")
-                        with odds_col3:
+                        with odds_col4:
                             spread_adj = market_odds.get('spread_adjustment', 0)
                             st.metric("Spread Impact", f"{spread_adj*100:+.2f}%")
-                        with odds_col4:
+                        with odds_col5:
                             total_adj = market_odds.get('total_adjustment', 0)
                             st.metric("Total Impact", f"{total_adj*100:+.2f}%")
 
@@ -1190,6 +1195,8 @@ def fetch_predictions_from_api(sport: str, date: str = None):
 
                 # Extract market odds data
                 market_odds = pred.get("market_odds", {})
+                moneyline_home = market_odds.get("moneyline_home", "")
+                moneyline_away = market_odds.get("moneyline_away", "")
                 spread = market_odds.get("spread", pred.get("spread", ""))
                 over_under = market_odds.get("over_under", pred.get("over_under", pred.get("total", "")))
 
@@ -1230,6 +1237,8 @@ def fetch_predictions_from_api(sport: str, date: str = None):
                     "game_time": game_time,
                     "venue": pred.get("venue", ""),
                     "spread": spread,
+                    "moneyline_home": moneyline_home,
+                    "moneyline_away": moneyline_away,
                     "over_under": over_under,
                     "home_record": home_form.get("record_last_10", pred.get("home_record", "")),
                     "away_record": away_form.get("record_last_10", pred.get("away_record", "")),

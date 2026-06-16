@@ -18,6 +18,9 @@ def get_config(key: str, default: str = "") -> str:
 # API Configuration
 API_BASE_URL = get_config("API_BASE_URL", "http://localhost:8000")
 API_TIMEOUT = int(get_config("API_TIMEOUT", "30"))
+SUCCESS_URL = get_config("SUCCESS_URL", "http://localhost:8501")
+CANCEL_URL = get_config("CANCEL_URL", "http://localhost:8501")
+
 
 # Application Settings
 APP_NAME = "Sports Prediction Platform"

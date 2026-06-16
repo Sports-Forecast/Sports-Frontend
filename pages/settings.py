@@ -4,6 +4,8 @@ Settings Page - Application configuration
 import streamlit as st
 from components import render_header
 from config import API_BASE_URL, REFRESH_INTERVALS, THEME
+from utils.api_client import get_api_client
+from datetime import datetime
 
 
 def render_settings_page():
@@ -15,7 +17,7 @@ def render_settings_page():
     )
 
     # Settings tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["🔗 Connections", "🎨 Appearance", "🔔 Notifications", "📊 Data"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔗 Connections", "🎨 Appearance", "🔔 Notifications", "📊 Data", "💎 Membership"])
 
     with tab1:
         render_connection_settings()
@@ -28,6 +30,68 @@ def render_settings_page():
 
     with tab4:
         render_data_settings()
+
+    with tab5:
+        render_membership_settings()
+
+
+def render_membership_settings():
+    """Render membership and subscription settings"""
+    st.markdown("### Membership Details")
+    
+    if not st.session_state.get('is_logged_in', False):
+        st.warning("Please login to view your membership details.")
+        return
+
+    client = get_api_client()
+    with st.spinner("Loading membership info..."):
+        response = client.get_profile()
+
+    if not response.get("success"):
+        st.error(f"Failed to load profile: {response.get('error')}")
+        return
+
+    profile_data = response.get("data", {})
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Email/Identifier:**")
+        st.text(profile_data.get("identifier", "N/A"))
+        
+        st.markdown("**Account Status:**")
+        is_active = profile_data.get("is_active", False)
+        st.markdown(f"<span style='color: {'#4CAF50' if is_active else '#F44336'}'>{'Active' if is_active else 'Inactive'}</span>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("**Current Plan:**")
+        plan = profile_data.get("plan", "free")
+        st.markdown(f"<strong style='font-size: 1.2em; text-transform: uppercase;'>{plan}</strong>", unsafe_allow_html=True)
+        
+        subscription = profile_data.get("subscription")
+        if subscription:
+            st.markdown("**Subscription Status:**")
+            st.text(subscription.get("status", "N/A").capitalize())
+            
+            st.markdown("**Current Period Ends:**")
+            period_end = subscription.get("current_period_end")
+            if period_end:
+                try:
+                    end_date = datetime.fromisoformat(period_end).date()
+                    st.text(end_date)
+                except Exception:
+                    st.text(str(period_end))
+            
+            st.markdown("---")
+            if st.button("🚫 Cancel Subscription", type="secondary"):
+                client.cancel_subscription()
+                st.success("Subscription cancelled successfully.")
+        elif plan != "free":
+            st.info("Subscription details not found.")
+        else:
+            st.info("You are currently on the free plan.")
+            # if st.button("Upgrade Plan", type="primary"):
+            #     st.switch_page("pages/billing.py")
 
 
 def render_connection_settings():

@@ -15,6 +15,7 @@ def render_prediction_card(
     game_time: str,
     venue: str = "",
     spread: str = "",
+    moneyline: str = "", 
     over_under: str = "",
     home_record: str = "",
     away_record: str = "",
@@ -110,13 +111,16 @@ def render_prediction_card(
 
         # Additional details
         if show_details:
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Spread", spread or "N/A")
+                st.metric("Moneyline", moneyline or "N/A")
             with col2:
-                st.metric("Over/Under", over_under or "N/A")
+                st.metric("Spread", spread or "N/A")
             with col3:
+                st.metric("Over/Under", over_under or "N/A")
+            with col4:
                 st.metric("Confidence", f"{confidence*100:.1f}%")
+
 
         st.divider()
 

@@ -7,7 +7,6 @@ from datetime import datetime
 import streamlit as st
 from config import API_BASE_URL, API_TIMEOUT
 
-
 class APIClient:
     """Handles all API communications with the backend"""
 
@@ -29,6 +28,14 @@ class APIClient:
     ) -> Dict[str, Any]:
         """Make HTTP request to the API"""
         url = f"{self.base_url}{endpoint}"
+        
+        # Add API Key from session state if available
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+        if 'api_key' in st.session_state and st.session_state.api_key:
+            headers["X-API-Key"] = st.session_state.api_key
 
         try:
             response = self.session.request(
@@ -36,7 +43,8 @@ class APIClient:
                 url=url,
                 params=params,
                 json=data,
-                timeout=timeout
+                timeout=timeout,
+                headers=headers
             )
             response.raise_for_status()
             return {"success": True, "data": response.json()}
@@ -45,9 +53,39 @@ class APIClient:
         except requests.exceptions.Timeout:
             return {"success": False, "error": "Request timed out"}
         except requests.exceptions.HTTPError as e:
-            return {"success": False, "error": f"HTTP Error: {e.response.status_code}"}
+            return {"success": False, "error": f"HTTP Error: {e.response.status_code} {e.response.text}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # Authentication Endpoints
+    def login(self, identifier: str, api_key: str) -> Dict[str, Any]:
+        """Authenticate user with the backend"""
+        data = {
+            "identifier": identifier,
+            "api_key": api_key
+        }
+        return self._make_request("POST", "/login", data=data)
+
+    def get_profile(self) -> Dict[str, Any]:
+        """Get user profile and subscription info"""
+        return self._make_request("GET", "/profile")
+
+    # Subscription Endpoints
+    def create_checkout_session(self, plan: str, success_url: str, cancel_url: str) -> Dict[str, Any]:
+        """Create a checkout session for a subscription plan"""
+        data = {
+            "plan_name": plan,
+            "success_url": success_url,
+            "cancel_url": cancel_url,
+        }
+        return self._make_request("POST", "/subscriptions/checkout", data=data)
+
+    def cancel_subscription(self) -> Dict[str, Any]:
+        """Cancel the user's subscription"""
+        data = {
+            "cancel_at_period_end": False
+        }
+        return self._make_request("POST", "/subscriptions/cancel", data=data)
 
     # Health Check
     def health_check(self) -> Dict[str, Any]:
@@ -57,7 +95,7 @@ class APIClient:
     # NFL Endpoints
     def get_nfl_predictions(self, date: Optional[str] = None) -> Dict[str, Any]:
         """Get NFL predictions for upcoming games"""
-        params = {"date": date} if date else None
+        params = {"date": date, "use_odds": True} if date else None
         return self._make_request("GET", "/api/predict/nfl", params=params)
 
     def get_nfl_qbs(self) -> Dict[str, Any]:
@@ -80,7 +118,8 @@ class APIClient:
         params = {
             "include_players": include_players,
             "include_form": include_form,
-            "force_refresh": force_refresh
+            "force_refresh": force_refresh,
+            "use_odds": True
         }
         if date:
             params["date"] = date
@@ -97,7 +136,7 @@ class APIClient:
     # MLB Endpoints
     def get_mlb_predictions(self, date: Optional[str] = None) -> Dict[str, Any]:
         """Get MLB predictions for upcoming games"""
-        params = {"date": date} if date else None
+        params = {"date": date, "use_odds": True} if date else None
         return self._make_request("GET", "/api/predict/mlb", params=params)
 
     def get_mlb_pitchers(self) -> Dict[str, Any]:
@@ -107,7 +146,7 @@ class APIClient:
     # NHL Endpoints
     def get_nhl_predictions(self, date: Optional[str] = None) -> Dict[str, Any]:
         """Get NHL predictions for upcoming games"""
-        params = {"date": date} if date else None
+        params = {"date": date, "use_odds": True} if date else None
         return self._make_request("GET", "/api/predict/nhl", params=params)
 
     # Live Prediction Endpoints

@@ -4,6 +4,7 @@ Sidebar navigation component for the Sports Prediction Platform
 import streamlit as st
 from streamlit_option_menu import option_menu
 from config import SPORTS, APP_NAME, APP_VERSION
+from utils.api_client import get_api_client
 
 
 def render_sidebar() -> str:
@@ -12,12 +13,78 @@ def render_sidebar() -> str:
     with st.sidebar:
         # Logo and branding
         st.markdown("""
-        <div style="text-align: center; padding: 1rem 0 1.5rem 0;">
+        <div style="text-align: center; padding: 0rem 0 1rem 0;">
             <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎯</div>
             <div style="font-size: 1.25rem; font-weight: 700; color: #FFFFFF;">Sports Prediction</div>
             <div style="font-size: 0.75rem; color: #8A8A8A;">Platform v{}</div>
         </div>
         """.format(APP_VERSION), unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # User Authentication Section
+        if not st.session_state.get('is_logged_in', False):
+            st.markdown("""
+            <div style="padding: 0 0.5rem 0.75rem 0.5rem;">
+                <div style="font-size: 0.75rem; color: #8A8A8A; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">
+                    User Login
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            with st.form("sidebar_login_form", border=False, enter_to_submit=False):
+                identifier = st.text_input("Identifier", placeholder="identifier", label_visibility="collapsed")
+                api_key_input = st.text_input("API Key", type="password", placeholder="enter api key", label_visibility="collapsed")
+                submit = st.form_submit_button("Login", use_container_width=True)
+                
+                if submit:
+                    if identifier and api_key_input:
+                        client = get_api_client()
+                        response = client.login(identifier, api_key_input)
+                        
+                        if response.get("success"):
+                            data = response.get("data", {})
+                            st.session_state.api_key = data.get("api_key")
+                            st.session_state.username = data.get("identifier")
+                            
+                            # Fetch plan info separately as it's no longer in login response
+                            profile_response = client.get_profile()
+                            if profile_response.get("success"):
+                                profile_data = profile_response.get("data", {})
+                                st.session_state.active_plan = profile_data.get("plan", "free")
+                            else:
+                                st.session_state.active_plan = "free"
+
+                            st.session_state.is_logged_in = True
+                            st.success("Logged in!")
+                            st.rerun()
+                        else:
+                            st.error("Login failed")
+                    else:
+                        st.warning("Enter credentials")
+        else:
+            # Logged in user info
+            st.markdown(f"""
+            <div style="background: linear-gradient(145deg, #2D2D30 0%, #252526 100%);
+                        border-radius: 8px; padding: 1rem; text-align: left;
+                        border: 1px solid rgba(255,255,255,0.08); margin-bottom: 1rem;">
+                <div style="font-size: 0.7rem; color: #8A8A8A; text-transform: uppercase; margin-bottom: 0.4rem;">Logged in as</div>
+                <div style="font-size: 1rem; font-weight: 700; color: #FFFFFF; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.2rem;">👤</span> {st.session_state.username}
+                </div>
+                <div style="font-size: 0.7rem; color: #8A8A8A; text-transform: uppercase; margin-bottom: 0.4rem;">Current Plan</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: #4CAF50; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1rem;">⭐</span> {st.session_state.active_plan}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("Logout", use_container_width=True):
+                st.session_state.is_logged_in = False
+                st.session_state.api_key = None
+                st.session_state.username = None
+                st.session_state.active_plan = None
+                st.rerun()
 
         st.markdown("---")
 
@@ -34,6 +101,7 @@ def render_sidebar() -> str:
                 "Simulations",
                 "Backtesting",
                 "Logs",
+                "Billing",
                 "Settings"
             ],
             icons=[
@@ -46,6 +114,7 @@ def render_sidebar() -> str:
                 "graph-up-arrow",
                 "clock-history",
                 "terminal",
+                "credit-card",
                 "gear"
             ],
             menu_icon="cast",

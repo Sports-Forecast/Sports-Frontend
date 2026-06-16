@@ -45,7 +45,7 @@ from pages.simulations import render_simulations_page
 from pages.backtesting import render_backtesting_page
 from pages.logs import render_logs_page
 from pages.settings import render_settings_page
-
+from pages.billing import render_billing_page
 
 def init_session_state():
     """Initialize session state variables"""
@@ -55,6 +55,12 @@ def init_session_state():
         st.session_state.notifications = []
         st.session_state.system_logs = []
         st.session_state.active_page = "Dashboard"
+        
+        # Authentication state
+        st.session_state.is_logged_in = False
+        st.session_state.username = None
+        st.session_state.active_plan = None
+        st.session_state.api_key = None
 
 
 def check_backend():
@@ -113,6 +119,9 @@ def main():
 
         elif selected_page == "Logs":
             render_logs_page()
+
+        elif selected_page == 'Billing':
+            render_billing_page()
 
         elif selected_page == "Settings":
             render_settings_page()

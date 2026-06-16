@@ -64,7 +64,7 @@ def render_status_panel():
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown("---")
+        st.markdown("")
 
         # Log viewer
         log_container = st.container()
